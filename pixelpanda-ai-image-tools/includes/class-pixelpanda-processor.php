@@ -118,7 +118,7 @@ class PixelPanda_Processor {
 
 	private static function replace_original( $attachment_id, $bytes, $operation ) {
 		$file = get_attached_file( $attachment_id );
-		if ( ! $file || ! is_writable( dirname( $file ) ) ) {
+		if ( ! $file || ! wp_is_writable( dirname( $file ) ) ) {
 			return new WP_Error( 'pixelpanda_replace', __( 'Original file is not writable.', 'pixelpanda-ai-image-tools' ) );
 		}
 		// Background removal yields PNG with alpha; keep the extension honest so browsers render it.

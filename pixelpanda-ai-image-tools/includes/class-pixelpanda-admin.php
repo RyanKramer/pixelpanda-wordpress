@@ -81,7 +81,9 @@ class PixelPanda_Admin {
 				'processing' => __( 'Processing…', 'pixelpanda-ai-image-tools' ),
 				'done'       => __( 'Done', 'pixelpanda-ai-image-tools' ),
 				'failed'     => __( 'Failed', 'pixelpanda-ai-image-tools' ),
+				/* translators: %d: number of credits the operation will use */
 				'confirm'    => __( 'This will use %d credit(s). Continue?', 'pixelpanda-ai-image-tools' ),
+				/* translators: %d: remaining credit balance */
 				'credits'    => __( 'Credits remaining: %d', 'pixelpanda-ai-image-tools' ),
 			),
 		) );
@@ -140,13 +142,13 @@ class PixelPanda_Admin {
 	}
 
 	private static function check( $cap = 'upload_files' ) {
-		check_ajax_referer( 'pixelpanda', 'nonce' );
 		if ( ! current_user_can( $cap ) ) {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'pixelpanda-ai-image-tools' ) ), 403 );
 		}
 	}
 
 	public static function ajax_validate_key() {
+		check_ajax_referer( 'pixelpanda', 'nonce' );
 		self::check( 'manage_options' );
 		$key = isset( $_POST['key'] ) ? sanitize_text_field( wp_unslash( $_POST['key'] ) ) : '';
 		$acc = PixelPanda_API::account( $key );
@@ -160,6 +162,7 @@ class PixelPanda_Admin {
 	}
 
 	public static function ajax_process() {
+		check_ajax_referer( 'pixelpanda', 'nonce' );
 		self::check();
 		$id = isset( $_POST['attachment_id'] ) ? absint( $_POST['attachment_id'] ) : 0;
 		$op = isset( $_POST['operation'] ) ? sanitize_key( $_POST['operation'] ) : '';
@@ -174,6 +177,7 @@ class PixelPanda_Admin {
 	}
 
 	public static function ajax_restore() {
+		check_ajax_referer( 'pixelpanda', 'nonce' );
 		self::check();
 		$id = isset( $_POST['attachment_id'] ) ? absint( $_POST['attachment_id'] ) : 0;
 		if ( ! $id || ! current_user_can( 'edit_post', $id ) ) {
