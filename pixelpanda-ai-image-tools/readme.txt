@@ -1,5 +1,5 @@
 === PixelPanda AI Image Tools ===
-Contributors: pixelpanda
+Contributors: kramer5789
 Tags: ai, background removal, image upscaler, woocommerce, product images
 Requires at least: 6.0
 Tested up to: 6.8
