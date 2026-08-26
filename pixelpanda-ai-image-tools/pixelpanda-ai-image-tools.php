@@ -3,7 +3,7 @@
  * Plugin Name:       PixelPanda AI Image Tools
  * Plugin URI:        https://pixelpanda.ai/wordpress
  * Description:       AI background removal, upscaling, enhancement and text removal for your Media Library and WooCommerce product images.
- * Version:           1.0.0
+ * Version:           1.0.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            PixelPanda
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'PIXELPANDA_VERSION', '1.0.0' );
+define( 'PIXELPANDA_VERSION', '1.0.1' );
 define( 'PIXELPANDA_FILE', __FILE__ );
 define( 'PIXELPANDA_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PIXELPANDA_URL', plugin_dir_url( __FILE__ ) );

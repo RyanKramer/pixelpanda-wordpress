@@ -116,6 +116,59 @@ class PixelPanda_Processor {
 		return $id;
 	}
 
+	/**
+	 * Folder that holds pre-processing originals.
+	 *
+	 * Lives inside the uploads directory, resolved at runtime with wp_upload_dir()
+	 * (never a hard-coded path), and is protected from direct access.
+	 *
+	 * @return string|WP_Error Absolute path without a trailing slash, or WP_Error.
+	 */
+	private static function backup_dir() {
+		$uploads = wp_upload_dir();
+		if ( ! empty( $uploads['error'] ) || empty( $uploads['basedir'] ) ) {
+			return new WP_Error( 'pixelpanda_uploads_dir', __( 'The uploads directory is not available.', 'pixelpanda-ai-image-tools' ) );
+		}
+		$dir = trailingslashit( $uploads['basedir'] ) . 'pixelpanda-ai-image-tools';
+		if ( ! wp_mkdir_p( $dir ) ) {
+			return new WP_Error( 'pixelpanda_uploads_dir', __( 'Could not create the backup folder inside the uploads directory.', 'pixelpanda-ai-image-tools' ) );
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		global $wp_filesystem;
+		WP_Filesystem();
+		if ( $wp_filesystem ) {
+			if ( ! $wp_filesystem->exists( $dir . '/index.php' ) ) {
+				$wp_filesystem->put_contents( $dir . '/index.php', "<?php\n// Silence is golden.\n", FS_CHMOD_FILE );
+			}
+			if ( ! $wp_filesystem->exists( $dir . '/.htaccess' ) ) {
+				$wp_filesystem->put_contents( $dir . '/.htaccess', "Require all denied\n<IfModule !mod_authz_core.c>\nDeny from all\n</IfModule>\n", FS_CHMOD_FILE );
+			}
+		}
+		return $dir;
+	}
+
+	/**
+	 * Absolute path of the stored original for an attachment, or '' when there is none.
+	 *
+	 * Only the file name is kept in post meta and it is always resolved inside our
+	 * own uploads folder, so a stored value can never point elsewhere on disk.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return string
+	 */
+	private static function backup_path( $attachment_id ) {
+		$name = get_post_meta( $attachment_id, '_pixelpanda_backup_file', true );
+		if ( ! $name ) {
+			return '';
+		}
+		$dir = self::backup_dir();
+		if ( is_wp_error( $dir ) ) {
+			return '';
+		}
+		return $dir . '/' . wp_basename( $name );
+	}
+
 	private static function replace_original( $attachment_id, $bytes, $operation ) {
 		$file = get_attached_file( $attachment_id );
 		if ( ! $file || ! wp_is_writable( dirname( $file ) ) ) {
@@ -125,17 +178,22 @@ class PixelPanda_Processor {
 		$ext = self::extension_for( $bytes, pathinfo( $file, PATHINFO_EXTENSION ) );
 		$new = preg_replace( '/\.[^.]+$/', '.' . $ext, $file );
 
-		// Keep one backup of the original so the action is reversible.
-		if ( ! get_post_meta( $attachment_id, '_pixelpanda_backup_file', true ) ) {
-			$backup = $file . '.pixelpanda-original';
-			if ( @copy( $file, $backup ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-				update_post_meta( $attachment_id, '_pixelpanda_backup_file', $backup );
-			}
-		}
-
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		global $wp_filesystem;
 		WP_Filesystem();
+
+		// Keep one backup of the original, in our own uploads folder, so the action is reversible.
+		if ( ! get_post_meta( $attachment_id, '_pixelpanda_backup_file', true ) ) {
+			$backup_dir = self::backup_dir();
+			if ( ! is_wp_error( $backup_dir ) ) {
+				$name   = wp_unique_filename( $backup_dir, $attachment_id . '-' . wp_basename( $file ) );
+				$backup = trailingslashit( $backup_dir ) . $name;
+				if ( $wp_filesystem->copy( $file, $backup, true, FS_CHMOD_FILE ) ) {
+					update_post_meta( $attachment_id, '_pixelpanda_backup_file', $name );
+				}
+			}
+		}
+
 		if ( ! $wp_filesystem->put_contents( $new, $bytes, FS_CHMOD_FILE ) ) {
 			return new WP_Error( 'pixelpanda_write', __( 'Could not write the processed image.', 'pixelpanda-ai-image-tools' ) );
 		}
@@ -163,7 +221,7 @@ class PixelPanda_Processor {
 
 	/** Restore the pre-processing original (replace mode only). */
 	public static function restore( $attachment_id ) {
-		$backup = get_post_meta( $attachment_id, '_pixelpanda_backup_file', true );
+		$backup = self::backup_path( $attachment_id );
 		if ( ! $backup || ! is_readable( $backup ) ) {
 			return new WP_Error( 'pixelpanda_no_backup', __( 'No original backup found.', 'pixelpanda-ai-image-tools' ) );
 		}
