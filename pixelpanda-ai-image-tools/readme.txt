@@ -64,6 +64,13 @@ Yes. WooCommerce only adds the product bulk actions; the Media Library integrati
 
 No, credits roll over forever.
 
+== Screenshots ==
+
+1. Remove background — every result is a transparent PNG, saved as a new attachment by default.
+2. AI upscale — a 350px supplier photo rebuilt at 1392px, with detail preserved for print.
+3. Remove text, stamps and promo overlays from marketplace photos.
+4. AI enhance — fix dark, blurry, heavily compressed product shots in one click.
+
 == Changelog ==
 
 = 1.0.1 =
