@@ -4,7 +4,7 @@ Tags: ai, background removal, image upscaler, woocommerce, product images
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -72,6 +72,10 @@ No, credits roll over forever.
 4. AI enhance — fix dark, blurry, heavily compressed product shots in one click.
 
 == Changelog ==
+
+= 1.0.2 =
+* Background removal now saves much smaller files. New setting: choose WebP (transparent and much smaller than PNG; the default where the server supports it) or PNG.
+* PNG results are now optimized as well.
 
 = 1.0.1 =
 * Originals kept in replace mode are now stored in a dedicated, access-protected folder inside the uploads directory (resolved with `wp_upload_dir()`) instead of beside the attachment file.

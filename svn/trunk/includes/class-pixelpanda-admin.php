@@ -42,6 +42,12 @@ class PixelPanda_Admin {
 			},
 			'default'           => 'new',
 		) );
+		register_setting( 'pixelpanda', 'pixelpanda_cutout_format', array(
+			'type'              => 'string',
+			'sanitize_callback' => function ( $v ) {
+				return 'png' === $v ? 'png' : 'webp';
+			},
+		) );
 	}
 
 	public static function action_links( $links ) {
@@ -125,6 +131,16 @@ class PixelPanda_Admin {
 							<fieldset>
 								<label><input type="radio" name="pixelpanda_default_mode" value="new" <?php checked( $mode, 'new' ); ?> /> <?php esc_html_e( 'Save as a new image (keeps the original)', 'pixelpanda-ai-image-tools' ); ?></label><br />
 								<label><input type="radio" name="pixelpanda_default_mode" value="replace" <?php checked( $mode, 'replace' ); ?> /> <?php esc_html_e( 'Replace the original in place (a backup is kept; you can restore)', 'pixelpanda-ai-image-tools' ); ?></label>
+							</fieldset>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Background removal format', 'pixelpanda-ai-image-tools' ); ?></th>
+						<td>
+							<?php $cutout_format = pixelpanda_cutout_format(); ?>
+							<fieldset>
+								<label><input type="radio" name="pixelpanda_cutout_format" value="webp" <?php checked( $cutout_format, 'webp' ); ?> /> <?php esc_html_e( 'WebP — transparent and much smaller (recommended for product images)', 'pixelpanda-ai-image-tools' ); ?></label><br />
+								<label><input type="radio" name="pixelpanda_cutout_format" value="png" <?php checked( $cutout_format, 'png' ); ?> /> <?php esc_html_e( 'PNG — transparent, lossless, larger files', 'pixelpanda-ai-image-tools' ); ?></label>
 							</fieldset>
 						</td>
 					</tr>

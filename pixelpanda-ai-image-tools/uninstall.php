@@ -18,6 +18,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 delete_option( 'pixelpanda_api_key' );
 delete_option( 'pixelpanda_default_mode' );
+delete_option( 'pixelpanda_cutout_format' );
 
 delete_post_meta_by_key( '_pixelpanda_backup_file' );
 delete_post_meta_by_key( '_pixelpanda_operation' );

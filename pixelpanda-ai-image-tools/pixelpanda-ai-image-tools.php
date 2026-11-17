@@ -3,7 +3,7 @@
  * Plugin Name:       PixelPanda AI Image Tools
  * Plugin URI:        https://pixelpanda.ai/wordpress
  * Description:       AI background removal, upscaling, enhancement and text removal for your Media Library and WooCommerce product images.
- * Version:           1.0.1
+ * Version:           1.0.2
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            PixelPanda
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'PIXELPANDA_VERSION', '1.0.1' );
+define( 'PIXELPANDA_VERSION', '1.0.2' );
 define( 'PIXELPANDA_FILE', __FILE__ );
 define( 'PIXELPANDA_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PIXELPANDA_URL', plugin_dir_url( __FILE__ ) );
@@ -31,6 +31,18 @@ require_once PIXELPANDA_DIR . 'includes/class-pixelpanda-media.php';
 require_once PIXELPANDA_DIR . 'includes/class-pixelpanda-woocommerce.php';
 
 /**
+ * File format for background-removed images: 'webp' or 'png'.
+ *
+ * Both keep transparency. WebP files are much smaller, so it is the default
+ * wherever this server can generate WebP thumbnails; otherwise PNG.
+ */
+function pixelpanda_cutout_format() {
+	$default = wp_image_editor_supports( array( 'mime_type' => 'image/webp' ) ) ? 'webp' : 'png';
+	$format  = get_option( 'pixelpanda_cutout_format', $default );
+	return 'png' === $format ? 'png' : 'webp';
+}
+
+/**
  * The operations exposed to users. Key => [label, credits, api path, extra body].
  */
 function pixelpanda_operations() {
@@ -39,7 +51,7 @@ function pixelpanda_operations() {
 			'label'   => __( 'Remove background', 'pixelpanda-ai-image-tools' ),
 			'credits' => 1,
 			'path'    => '/remove-background',
-			'body'    => array(),
+			'body'    => array( 'output_format' => pixelpanda_cutout_format() ),
 		),
 		'upscale_2x'        => array(
 			'label'   => __( 'Upscale 2x', 'pixelpanda-ai-image-tools' ),
