@@ -3,7 +3,7 @@
  * Plugin Name:       PixelPanda AI Image Tools
  * Plugin URI:        https://pixelpanda.ai/wordpress
  * Description:       AI background removal, upscaling, enhancement and text removal for your Media Library and WooCommerce product images.
- * Version:           1.0.2
+ * Version:           1.1.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            PixelPanda
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'PIXELPANDA_VERSION', '1.0.2' );
+define( 'PIXELPANDA_VERSION', '1.1.0' );
 define( 'PIXELPANDA_FILE', __FILE__ );
 define( 'PIXELPANDA_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PIXELPANDA_URL', plugin_dir_url( __FILE__ ) );
@@ -26,6 +26,7 @@ define( 'PIXELPANDA_API_BASE', 'https://pixelpanda.ai/api/v2' );
 
 require_once PIXELPANDA_DIR . 'includes/class-pixelpanda-api.php';
 require_once PIXELPANDA_DIR . 'includes/class-pixelpanda-processor.php';
+require_once PIXELPANDA_DIR . 'includes/class-pixelpanda-queue.php';
 require_once PIXELPANDA_DIR . 'includes/class-pixelpanda-admin.php';
 require_once PIXELPANDA_DIR . 'includes/class-pixelpanda-media.php';
 require_once PIXELPANDA_DIR . 'includes/class-pixelpanda-woocommerce.php';
@@ -65,8 +66,14 @@ function pixelpanda_operations() {
 			'path'    => '/upscale',
 			'body'    => array( 'scale' => 4, 'quality' => 'balanced' ),
 		),
+		'sharpen'           => array(
+			'label'   => __( 'Sharpen & clean (keeps every detail)', 'pixelpanda-ai-image-tools' ),
+			'credits' => 1,
+			'path'    => '/enhance',
+			'body'    => array( 'mode' => 'faithful' ),
+		),
 		'enhance'           => array(
-			'label'   => __( 'AI enhance', 'pixelpanda-ai-image-tools' ),
+			'label'   => __( 'AI enhance (creative, 2x size)', 'pixelpanda-ai-image-tools' ),
 			'credits' => 1,
 			'path'    => '/enhance',
 			'body'    => array(),
@@ -83,6 +90,7 @@ function pixelpanda_operations() {
 add_action( 'plugins_loaded', function () {
 	PixelPanda_Admin::init();
 	PixelPanda_Media::init();
+	PixelPanda_Queue::init();
 	if ( class_exists( 'WooCommerce' ) ) {
 		PixelPanda_WooCommerce::init();
 	}

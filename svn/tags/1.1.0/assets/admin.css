@@ -1,0 +1,23 @@
+.pixelpanda-notice a { text-decoration: underline; }
+#pixelpanda-validate-result { margin-left: 8px; font-weight: 600; }
+.pixelpanda-settings .form-table input[type="password"] { font-family: monospace; }
+
+/* Bulk job chooser */
+.pixelpanda-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 100000; display: flex; align-items: center; justify-content: center; }
+.pixelpanda-modal { background: #fff; border-radius: 6px; padding: 22px 24px; width: 520px; max-width: calc(100vw - 32px); box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+.pixelpanda-modal h2 { margin: 0 0 6px; }
+.pixelpanda-modal label { display: block; padding: 10px 12px; margin: 8px 0; border: 1px solid #dcdcde; border-radius: 4px; cursor: pointer; }
+.pixelpanda-modal label.is-checked { border-color: #2271b1; background: #f0f6fc; }
+.pixelpanda-modal label small { display: block; color: #50575e; margin: 2px 0 0 24px; }
+.pixelpanda-modal-actions { margin-top: 16px; text-align: right; }
+.pixelpanda-modal-actions .button { margin-left: 8px; }
+/* Jobs + review */
+.pixelpanda-runs { max-width: 1100px; }
+.pixelpanda-review { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; max-width: 1400px; }
+.pixelpanda-review-item { background: #fff; border: 1px solid #dcdcde; border-radius: 4px; padding: 10px; }
+.pixelpanda-review-item.pixelpanda-is-fail { border-color: #d63638; }
+.pixelpanda-review-item.pixelpanda-is-skip, .pixelpanda-review-item.pixelpanda-is-undone { opacity: .7; }
+.pixelpanda-review-pair { display: flex; gap: 8px; }
+.pixelpanda-review-pair a { flex: 1; text-align: center; text-decoration: none; color: #50575e; font-size: 11px; }
+.pixelpanda-review-pair img { width: 100%; height: 130px; object-fit: contain; background: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 16px 16px; border-radius: 3px; display: block; }
+.pixelpanda-review-meta { margin-top: 8px; font-size: 12px; word-break: break-word; }

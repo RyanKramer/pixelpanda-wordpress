@@ -83,7 +83,35 @@ class PixelPanda_Admin {
 			'operations' => pixelpanda_operations(),
 			'configured' => PixelPanda_API::is_configured(),
 			'settings'   => admin_url( 'options-general.php?page=pixelpanda' ),
+			'defaultMode' => get_option( 'pixelpanda_default_mode', 'new' ),
+			'hasWoo'     => class_exists( 'WooCommerce' ),
 			'i18n'       => array(
+				'chooseTitle'  => __( 'PixelPanda bulk job', 'pixelpanda-ai-image-tools' ),
+				/* translators: 1: operation name, 2: number of images */
+				'chooseIntro'  => __( '%1$s on %2$d image(s).', 'pixelpanda-ai-image-tools' ),
+				/* translators: %d: number of credits */
+				'chooseCost'   => __( 'Uses up to %d credit(s). Images that are skipped or fail are not charged.', 'pixelpanda-ai-image-tools' ),
+				'modeReplace'  => __( 'Replace the original images', 'pixelpanda-ai-image-tools' ),
+				'modeReplaceD' => __( 'Your store shows the new images straight away. Every original is backed up and the whole job can be undone in one click.', 'pixelpanda-ai-image-tools' ),
+				'modeGallery'  => __( 'Add to each product\'s gallery', 'pixelpanda-ai-image-tools' ),
+				'modeGalleryD' => __( 'Keeps the originals and adds the new image next to them.', 'pixelpanda-ai-image-tools' ),
+				'modeNew'      => __( 'Only save to the Media Library', 'pixelpanda-ai-image-tools' ),
+				'modeNewD'     => __( 'Nothing on your site changes. You place the new images yourself.', 'pixelpanda-ai-image-tools' ),
+				'start'        => __( 'Start', 'pixelpanda-ai-image-tools' ),
+				'cancel'       => __( 'Cancel', 'pixelpanda-ai-image-tools' ),
+				'counting'     => __( 'Counting images…', 'pixelpanda-ai-image-tools' ),
+				'noImages'     => __( 'No images found in that selection.', 'pixelpanda-ai-image-tools' ),
+				/* translators: 1: processed count, 2: total, 3: failed count, 4: skipped count */
+				'progress'     => __( 'PixelPanda: %1$d of %2$d done (%3$d failed, %4$d skipped). Runs in the background — you can leave this page.', 'pixelpanda-ai-image-tools' ),
+				/* translators: 1: done count, 2: failed count, 3: skipped count */
+				'finished'     => __( 'PixelPanda: finished. %1$d done, %2$d failed, %3$d skipped.', 'pixelpanda-ai-image-tools' ),
+				'review'       => __( 'Review results / undo', 'pixelpanda-ai-image-tools' ),
+				'stopJob'      => __( 'Stop', 'pixelpanda-ai-image-tools' ),
+				'stopped'      => __( 'PixelPanda: stopped.', 'pixelpanda-ai-image-tools' ),
+				'undoConfirm'  => __( 'Undo this whole job? Replaced images go back to their originals; images the job added are deleted.', 'pixelpanda-ai-image-tools' ),
+				/* translators: %d: images left to undo */
+				'undoing'      => __( 'Undoing… %d left', 'pixelpanda-ai-image-tools' ),
+				'undone'       => __( 'Job undone.', 'pixelpanda-ai-image-tools' ),
 				'processing' => __( 'Processing…', 'pixelpanda-ai-image-tools' ),
 				'done'       => __( 'Done', 'pixelpanda-ai-image-tools' ),
 				'failed'     => __( 'Failed', 'pixelpanda-ai-image-tools' ),
@@ -147,13 +175,183 @@ class PixelPanda_Admin {
 				</table>
 				<?php submit_button(); ?>
 			</form>
+			<?php self::render_runs(); ?>
 			<h2><?php esc_html_e( 'How to use', 'pixelpanda-ai-image-tools' ); ?></h2>
 			<ol>
 				<li><?php esc_html_e( 'Media → Library: hover an image and pick a PixelPanda action, or select several and use the Bulk actions menu.', 'pixelpanda-ai-image-tools' ); ?></li>
-				<li><?php esc_html_e( 'WooCommerce → Products: select products and choose a PixelPanda bulk action to process every product image (featured + gallery).', 'pixelpanda-ai-image-tools' ); ?></li>
+				<li><?php esc_html_e( 'WooCommerce → Products: select products and choose a PixelPanda bulk action to process every product image (featured, gallery and variation images). You choose whether results replace the originals, are added to the gallery, or only go to the Media Library.', 'pixelpanda-ai-image-tools' ); ?></li>
+				<li><?php esc_html_e( 'Bulk jobs run in the background: you can close the tab and come back. Every job is listed above, where you can review before/after and undo the whole job.', 'pixelpanda-ai-image-tools' ); ?></li>
 			</ol>
 			<p class="description"><?php esc_html_e( 'Pricing: 1 credit per image for every operation above. Credits never expire.', 'pixelpanda-ai-image-tools' ); ?> <a href="https://pixelpanda.ai/pricing" target="_blank" rel="noopener">pixelpanda.ai/pricing</a></p>
 		</div>
+		<?php
+	}
+
+	private static function status_label( $status ) {
+		$labels = array(
+			'running'   => __( 'Running', 'pixelpanda-ai-image-tools' ),
+			'done'      => __( 'Finished', 'pixelpanda-ai-image-tools' ),
+			'stopped'   => __( 'Stopped', 'pixelpanda-ai-image-tools' ),
+			'cancelled' => __( 'Stopped by you', 'pixelpanda-ai-image-tools' ),
+			'undone'    => __( 'Undone', 'pixelpanda-ai-image-tools' ),
+		);
+		return isset( $labels[ $status ] ) ? $labels[ $status ] : $status;
+	}
+
+	private static function mode_label( $mode ) {
+		$labels = array(
+			'replace' => __( 'Replaced originals', 'pixelpanda-ai-image-tools' ),
+			'gallery' => __( 'Added to gallery', 'pixelpanda-ai-image-tools' ),
+			'new'     => __( 'Media Library only', 'pixelpanda-ai-image-tools' ),
+		);
+		return isset( $labels[ $mode ] ) ? $labels[ $mode ] : $mode;
+	}
+
+	/** Whole-catalogue launcher, the list of bulk jobs, and one job's before/after review. */
+	private static function render_runs() {
+		$ops  = pixelpanda_operations();
+		$runs = PixelPanda_Queue::runs();
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only view selector.
+		$view = isset( $_GET['run'] ) ? sanitize_key( wp_unslash( $_GET['run'] ) ) : '';
+
+		if ( $view && isset( $runs[ $view ] ) ) {
+			self::render_run_detail( $runs[ $view ] );
+			return;
+		}
+
+		if ( class_exists( 'WooCommerce' ) ) {
+			?>
+			<h2><?php esc_html_e( 'Whole catalogue', 'pixelpanda-ai-image-tools' ); ?></h2>
+			<p><?php esc_html_e( 'Process every image of every product in one background job. You will see the image count and credit cost before anything is spent.', 'pixelpanda-ai-image-tools' ); ?></p>
+			<p>
+				<select id="pixelpanda-catalogue-op">
+					<?php foreach ( $ops as $key => $op ) : ?>
+						<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $key, 'sharpen' ); ?>><?php echo esc_html( $op['label'] ); ?></option>
+					<?php endforeach; ?>
+				</select>
+				<button type="button" class="button button-secondary" id="pixelpanda-catalogue-start"><?php esc_html_e( 'Process all product images…', 'pixelpanda-ai-image-tools' ); ?></button>
+			</p>
+			<?php
+		}
+		?>
+		<h2><?php esc_html_e( 'Bulk jobs', 'pixelpanda-ai-image-tools' ); ?></h2>
+		<?php if ( ! $runs ) : ?>
+			<p class="description"><?php esc_html_e( 'No bulk jobs yet. Start one from Media → Library or WooCommerce → Products.', 'pixelpanda-ai-image-tools' ); ?></p>
+		<?php else : ?>
+			<table class="widefat striped pixelpanda-runs">
+				<thead><tr>
+					<th><?php esc_html_e( 'Started', 'pixelpanda-ai-image-tools' ); ?></th>
+					<th><?php esc_html_e( 'Operation', 'pixelpanda-ai-image-tools' ); ?></th>
+					<th><?php esc_html_e( 'Result', 'pixelpanda-ai-image-tools' ); ?></th>
+					<th><?php esc_html_e( 'Progress', 'pixelpanda-ai-image-tools' ); ?></th>
+					<th><?php esc_html_e( 'Credits', 'pixelpanda-ai-image-tools' ); ?></th>
+					<th><?php esc_html_e( 'Status', 'pixelpanda-ai-image-tools' ); ?></th>
+					<th></th>
+				</tr></thead>
+				<tbody>
+				<?php foreach ( $runs as $run ) : ?>
+					<tr data-run="<?php echo esc_attr( $run['id'] ); ?>" data-status="<?php echo esc_attr( $run['status'] ); ?>">
+						<td><?php echo esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $run['created'] ) ); ?></td>
+						<td><?php echo esc_html( isset( $ops[ $run['op'] ] ) ? $ops[ $run['op'] ]['label'] : $run['op'] ); ?></td>
+						<td><?php echo esc_html( self::mode_label( $run['mode'] ) ); ?></td>
+						<td class="pixelpanda-run-progress">
+							<?php
+							/* translators: 1: done, 2: total, 3: failed, 4: skipped */
+							echo esc_html( sprintf( __( '%1$d of %2$d (%3$d failed, %4$d skipped)', 'pixelpanda-ai-image-tools' ), $run['done'], $run['total'], $run['failed'], $run['skipped'] ) );
+							?>
+						</td>
+						<td class="pixelpanda-run-credits"><?php echo esc_html( (int) $run['credits'] ); ?></td>
+						<td class="pixelpanda-run-status"><?php echo esc_html( self::status_label( $run['status'] ) ); ?><?php echo $run['message'] ? ' — ' . esc_html( $run['message'] ) : ''; ?></td>
+						<td><a class="button button-small" href="<?php echo esc_url( admin_url( 'options-general.php?page=pixelpanda&run=' . $run['id'] ) ); ?>"><?php esc_html_e( 'Review', 'pixelpanda-ai-image-tools' ); ?></a></td>
+					</tr>
+				<?php endforeach; ?>
+				</tbody>
+			</table>
+		<?php endif; ?>
+		<?php
+	}
+
+	private static function render_run_detail( $run ) {
+		$ops    = pixelpanda_operations();
+		$items  = PixelPanda_Queue::items( $run['id'] );
+		$nonce  = wp_create_nonce( 'pixelpanda' );
+		$undo   = in_array( $run['status'], array( 'done', 'stopped', 'cancelled', 'running' ), true ) && $run['done'] > 0;
+		?>
+		<h2>
+			<?php echo esc_html( isset( $ops[ $run['op'] ] ) ? $ops[ $run['op'] ]['label'] : $run['op'] ); ?>
+			— <?php echo esc_html( self::mode_label( $run['mode'] ) ); ?>
+		</h2>
+		<p class="pixelpanda-run-summary" data-run="<?php echo esc_attr( $run['id'] ); ?>" data-status="<?php echo esc_attr( $run['status'] ); ?>">
+			<strong class="pixelpanda-run-status"><?php echo esc_html( self::status_label( $run['status'] ) ); ?></strong>
+			<span class="pixelpanda-run-progress">
+				<?php
+				/* translators: 1: done, 2: total, 3: failed, 4: skipped */
+				echo esc_html( sprintf( __( '%1$d of %2$d (%3$d failed, %4$d skipped)', 'pixelpanda-ai-image-tools' ), $run['done'], $run['total'], $run['failed'], $run['skipped'] ) );
+				?>
+			</span>
+			· <?php
+			/* translators: %d: credits used */
+			echo esc_html( sprintf( __( '%d credit(s) used', 'pixelpanda-ai-image-tools' ), $run['credits'] ) );
+			?>
+			<?php echo $run['message'] ? ' · ' . esc_html( $run['message'] ) : ''; ?>
+		</p>
+		<p>
+			<a class="button" href="<?php echo esc_url( admin_url( 'options-general.php?page=pixelpanda' ) ); ?>">&larr; <?php esc_html_e( 'All jobs', 'pixelpanda-ai-image-tools' ); ?></a>
+			<?php if ( 'running' === $run['status'] ) : ?>
+				<button type="button" class="button pixelpanda-run-stop" data-run="<?php echo esc_attr( $run['id'] ); ?>"><?php esc_html_e( 'Stop', 'pixelpanda-ai-image-tools' ); ?></button>
+			<?php endif; ?>
+			<?php if ( $undo ) : ?>
+				<button type="button" class="button button-link-delete pixelpanda-run-undo" data-run="<?php echo esc_attr( $run['id'] ); ?>"><?php esc_html_e( 'Undo this whole job', 'pixelpanda-ai-image-tools' ); ?></button>
+			<?php endif; ?>
+		</p>
+		<div class="pixelpanda-review">
+			<?php
+			foreach ( array_slice( $items, 0, 300 ) as $item ) :
+				$title  = get_the_title( $item['a'] );
+				$before = '';
+				$after  = '';
+				if ( 'ok' === $item['s'] ) {
+					if ( 'replace' === $run['mode'] ) {
+						$before = add_query_arg( array( 'action' => 'pixelpanda_backup_image', 'attachment_id' => $item['a'], 'nonce' => $nonce ), admin_url( 'admin-ajax.php' ) );
+						$after  = wp_get_attachment_image_url( $item['a'], 'medium' );
+					} else {
+						$before = wp_get_attachment_image_url( $item['a'], 'medium' );
+						$after  = wp_get_attachment_image_url( $item['r'], 'medium' );
+					}
+				} else {
+					$before = wp_get_attachment_image_url( $item['a'], 'medium' );
+				}
+				?>
+				<div class="pixelpanda-review-item pixelpanda-is-<?php echo esc_attr( $item['s'] ); ?>">
+					<div class="pixelpanda-review-pair">
+						<?php if ( $before ) : ?>
+							<a href="<?php echo esc_url( 'ok' === $item['s'] && 'replace' === $run['mode'] ? $before : wp_get_attachment_url( $item['a'] ) ); ?>" target="_blank" rel="noopener"><img src="<?php echo esc_url( $before ); ?>" alt="" loading="lazy" /><span><?php esc_html_e( 'Before', 'pixelpanda-ai-image-tools' ); ?></span></a>
+						<?php endif; ?>
+						<?php if ( $after ) : ?>
+							<a href="<?php echo esc_url( wp_get_attachment_url( 'replace' === $run['mode'] ? $item['a'] : $item['r'] ) ); ?>" target="_blank" rel="noopener"><img src="<?php echo esc_url( $after ); ?>" alt="" loading="lazy" /><span><?php esc_html_e( 'After', 'pixelpanda-ai-image-tools' ); ?></span></a>
+						<?php endif; ?>
+					</div>
+					<div class="pixelpanda-review-meta">
+						<?php echo esc_html( $title ? $title : '#' . $item['a'] ); ?>
+						<?php if ( 'fail' === $item['s'] || 'skip' === $item['s'] ) : ?>
+							<br /><em><?php echo esc_html( $item['e'] ); ?></em>
+						<?php elseif ( 'pending' === $item['s'] ) : ?>
+							<br /><em><?php esc_html_e( 'Waiting…', 'pixelpanda-ai-image-tools' ); ?></em>
+						<?php elseif ( 'undone' === $item['s'] ) : ?>
+							<br /><em><?php esc_html_e( 'Undone', 'pixelpanda-ai-image-tools' ); ?></em>
+						<?php endif; ?>
+					</div>
+				</div>
+			<?php endforeach; ?>
+		</div>
+		<?php if ( count( $items ) > 300 ) : ?>
+			<p class="description">
+				<?php
+				/* translators: %d: total images in the job */
+				echo esc_html( sprintf( __( 'Showing the first 300 of %d images.', 'pixelpanda-ai-image-tools' ), count( $items ) ) );
+				?>
+			</p>
+		<?php endif; ?>
 		<?php
 	}
 

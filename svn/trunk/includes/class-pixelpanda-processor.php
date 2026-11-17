@@ -12,10 +12,12 @@ class PixelPanda_Processor {
 	/**
 	 * @param int    $attachment_id
 	 * @param string $operation  Key from pixelpanda_operations().
-	 * @param string $mode       'new' (new attachment) or 'replace' (overwrite original).
+	 * @param string $mode       'new' (new attachment), 'replace' (overwrite original) or
+	 *                           'gallery' (new attachment, added to the product's gallery).
+	 * @param int    $product_id WooCommerce product the image belongs to (gallery mode).
 	 * @return array|WP_Error  ['attachment_id','url','credits_used','credits_remaining']
 	 */
-	public static function run( $attachment_id, $operation, $mode = null ) {
+	public static function run( $attachment_id, $operation, $mode = null, $product_id = 0 ) {
 		$ops = pixelpanda_operations();
 		if ( ! isset( $ops[ $operation ] ) ) {
 			return new WP_Error( 'pixelpanda_op', __( 'Unknown operation.', 'pixelpanda-ai-image-tools' ) );
@@ -28,7 +30,13 @@ class PixelPanda_Processor {
 		$file = get_attached_file( $attachment_id );
 		$url  = wp_get_attachment_url( $attachment_id );
 
-		$result = PixelPanda_API::process( $op['path'], $op['body'], $url, $file );
+		$body = $op['body'];
+		if ( ! isset( $body['output_format'] ) ) {
+			// Hand back the kind of file that went in. Results used to always be PNG,
+			// which turned a 300 KB product JPEG into a 7 MB upload.
+			$body['output_format'] = self::format_for( $file );
+		}
+		$result = PixelPanda_API::process( $op['path'], $body, $url, $file );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
@@ -47,6 +55,9 @@ class PixelPanda_Processor {
 		if ( is_wp_error( $stored ) ) {
 			return $stored;
 		}
+		if ( 'gallery' === $mode && $product_id ) {
+			self::add_to_gallery( $product_id, $stored, $attachment_id );
+		}
 
 		update_post_meta( $stored, '_pixelpanda_operation', sanitize_key( $operation ) );
 		update_post_meta( $stored, '_pixelpanda_source_id', (int) $attachment_id );
@@ -58,6 +69,72 @@ class PixelPanda_Processor {
 			'credits_used'      => isset( $result['credits_used'] ) ? (int) $result['credits_used'] : $op['credits'],
 			'credits_remaining' => isset( $result['credits_remaining'] ) ? (int) $result['credits_remaining'] : null,
 		);
+	}
+
+	/** Result format to ask the API for, matched to the source file. */
+	private static function format_for( $file ) {
+		$type = wp_check_filetype( $file );
+		if ( 'image/jpeg' === $type['type'] ) {
+			return 'jpg';
+		}
+		if ( 'image/webp' === $type['type'] && wp_image_editor_supports( array( 'mime_type' => 'image/webp' ) ) ) {
+			return 'webp';
+		}
+		return 'png';
+	}
+
+	/**
+	 * Add an image to a product's gallery, right after the image it was made from.
+	 * No-op without WooCommerce.
+	 */
+	public static function add_to_gallery( $product_id, $attachment_id, $after_id = 0 ) {
+		if ( ! function_exists( 'wc_get_product' ) ) {
+			return;
+		}
+		$product = wc_get_product( $product_id );
+		if ( ! $product ) {
+			return;
+		}
+		if ( $product->is_type( 'variation' ) ) {
+			$product = wc_get_product( $product->get_parent_id() );
+			if ( ! $product ) {
+				return;
+			}
+		}
+		$gallery = array_map( 'intval', $product->get_gallery_image_ids() );
+		if ( in_array( (int) $attachment_id, $gallery, true ) ) {
+			return;
+		}
+		$pos = array_search( (int) $after_id, $gallery, true );
+		if ( false === $pos ) {
+			// Made from the featured image: put it first in the gallery.
+			array_unshift( $gallery, (int) $attachment_id );
+		} else {
+			array_splice( $gallery, $pos + 1, 0, array( (int) $attachment_id ) );
+		}
+		$product->set_gallery_image_ids( $gallery );
+		$product->save();
+	}
+
+	public static function remove_from_gallery( $product_id, $attachment_id ) {
+		if ( ! function_exists( 'wc_get_product' ) ) {
+			return;
+		}
+		$product = wc_get_product( $product_id );
+		if ( $product && $product->is_type( 'variation' ) ) {
+			$product = wc_get_product( $product->get_parent_id() );
+		}
+		if ( ! $product ) {
+			return;
+		}
+		$gallery = array_values( array_diff( array_map( 'intval', $product->get_gallery_image_ids() ), array( (int) $attachment_id ) ) );
+		$product->set_gallery_image_ids( $gallery );
+		$product->save();
+	}
+
+	/** Path of the stored original for an attachment ('' if none). Used by the review screen. */
+	public static function backup_path_for( $attachment_id ) {
+		return self::backup_path( $attachment_id );
 	}
 
 	private static function download( $url ) {

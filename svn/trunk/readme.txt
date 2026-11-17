@@ -4,7 +4,7 @@ Tags: ai, background removal, image upscaler, woocommerce, product images
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.2
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -72,6 +72,17 @@ No, credits roll over forever.
 4. AI enhance — fix dark, blurry, heavily compressed product shots in one click.
 
 == Changelog ==
+
+= 1.1.0 =
+* WooCommerce bulk actions now ask where results should go: replace the product images (originals backed up), add them to the product gallery, or only save to the Media Library. Previously the default left the store unchanged.
+* Bulk jobs run in the background. You can close the tab; the job carries on and can be stopped at any time.
+* New "Bulk jobs" list under Settings → PixelPanda with a before/after review for every job and a one-click "Undo this whole job".
+* New "Process all product images" action for the whole catalogue, with the image count and credit cost shown before anything is spent.
+* New operation: "Sharpen & clean (keeps every detail)" — a crisper photo at the same size with nothing redrawn. Recommended for product photos.
+* Variation images are now included in product bulk actions.
+* Results come back in the same format as the source (a JPEG stays a JPEG) instead of always PNG, so files stay web-sized.
+* Images that are already high resolution are skipped by the upscale actions and cost no credit.
+* A job stops when credits run out instead of failing every remaining image.
 
 = 1.0.2 =
 * Background removal now saves much smaller files. New setting: choose WebP (transparent and much smaller than PNG; the default where the server supports it) or PNG.

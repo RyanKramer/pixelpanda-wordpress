@@ -20,6 +20,16 @@ delete_option( 'pixelpanda_api_key' );
 delete_option( 'pixelpanda_default_mode' );
 delete_option( 'pixelpanda_cutout_format' );
 
+// Background runs: the index, then each run's item list and lock.
+$pixelpanda_runs = get_option( 'pixelpanda_runs', array() );
+if ( is_array( $pixelpanda_runs ) ) {
+	foreach ( array_keys( $pixelpanda_runs ) as $pixelpanda_run_id ) {
+		delete_option( 'pixelpanda_run_items_' . $pixelpanda_run_id );
+		delete_option( 'pixelpanda_run_lock_' . $pixelpanda_run_id );
+	}
+}
+delete_option( 'pixelpanda_runs' );
+
 delete_post_meta_by_key( '_pixelpanda_backup_file' );
 delete_post_meta_by_key( '_pixelpanda_operation' );
 
